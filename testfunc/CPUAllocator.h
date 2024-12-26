@@ -4,7 +4,7 @@
 #include <mutex>
 #include <unordered_map>
 
-#include "Allocator.h"
+#include <c10/core/Allocator.h>
 #include <c10/util/Flags.h>
 
 // TODO: rename to c10
@@ -36,16 +36,16 @@ class C10_API ProfiledCPUMemoryReporter {
 C10_API ProfiledCPUMemoryReporter& profiledCPUMemoryReporter();
 
 // Get the CPU Allocator.
-C10_API at::Allocator* GetCPUAllocator();
+C10_API Allocator* GetCPUAllocator();
 // Sets the CPU allocator to the given allocator: the caller gives away the
 // ownership of the pointer.
-C10_API void SetCPUAllocator(at::Allocator* alloc, uint8_t priority = 0);
+C10_API void SetCPUAllocator(Allocator* alloc, uint8_t priority = 0);
 
 // Get the Default CPU Allocator
-C10_API at::Allocator* GetDefaultCPUAllocator();
+C10_API Allocator* GetDefaultCPUAllocator();
 
 // Get the Default Mobile CPU Allocator
-C10_API at::Allocator* GetDefaultMobileCPUAllocator();
+C10_API Allocator* GetDefaultMobileCPUAllocator();
 
 // The CPUCachingAllocator is experimental and might disappear in the future.
 // The only place that uses it is in StaticRuntime.

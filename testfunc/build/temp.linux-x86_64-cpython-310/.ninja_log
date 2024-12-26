@@ -1,0 +1,19 @@
+# ninja log v5
+1	695	1735193438101134309	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/numa.o	55b57a4f3d996621
+0	1229	1735193438633179018	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/alloc_cpu.o	6a3b7964c79a0e89
+0	683	1735196290763732777	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/Allocator.o	6fd2a46d16a40a57
+1	21123	1735210167902188580	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/testfunc.wrapper.o	4ce79b03b573a495
+21	701	1735212631621478864	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/Allocator.o	6fd2a46d16a40a57
+21	1120	1735212632037517399	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/CPUAllocator.o	4bed47cf8663792
+22	21922	1735212652815438399	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/testfunc.wrapper.o	4ce79b03b573a495
+21	1121	1735215027467162486	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/CPUAllocator.o	4bed47cf8663792
+21	2099	1735215028447244507	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/testfunc.o	92ee8583d8b3dd0
+21	21188	1735215047504839570	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/testfunc.wrapper.o	4ce79b03b573a495
+21	624	1735218227699809821	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/Allocator.o	6fd2a46d16a40a57
+21	677	1735220344440919709	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/numa.o	e4c95b274d017e7a
+21	688	1735220344448920387	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/Allocator.o	40ddb46fbb28e766
+21	1132	1735220344892958049	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/CPUAllocator.o	29bf268019d6f15b
+21	1255	1735220345016968566	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/alloc_cpu.o	52c85cd228688baa
+22	2092	1735220345853039477	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/testfunc.o	31b730f64eb49c9d
+22	21252	1735220364986662142	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/testfunc.wrapper.o	a6790e8eaed62597
+21	20921	1735221271425373375	/workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/testfunc.wrapper.o	a6790e8eaed62597

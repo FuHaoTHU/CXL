@@ -1,0 +1,29 @@
+ninja_required_version = 1.3
+cxx = c++
+
+cflags = -pthread -B /opt/conda/envs/distserve/compiler_compat -Wno-unused-result -Wsign-compare -DNDEBUG -fwrapv -O2 -Wall -fPIC -O2 -isystem /opt/conda/envs/distserve/include -fPIC -O2 -isystem /opt/conda/envs/distserve/include -fPIC -I/opt/conda/envs/distserve/lib/python3.10/site-packages/torch/include -I/opt/conda/envs/distserve/lib/python3.10/site-packages/torch/include/torch/csrc/api/include -I/opt/conda/envs/distserve/lib/python3.10/site-packages/torch/include/TH -I/opt/conda/envs/distserve/lib/python3.10/site-packages/torch/include/THC -I/opt/pytorch/pytorch/aten/src/ATen/core -I/opt/pytorch/pytorch/aten/src/ATen -I/opt/pytorch/pytorch/c10 -I/opt/conda/envs/distserve/lib/python3.10/site-packages/torch/include -I/opt/pytorch/pytorch/torch -I/opt/conda/envs/distserve/include/python3.10 -c
+post_cflags = -DTORCH_API_INCLUDE_EXTENSION_H '-DPYBIND11_COMPILER_TYPE="_gcc"' '-DPYBIND11_STDLIB="_libstdcpp"' '-DPYBIND11_BUILD_ABI="_cxxabi1011"' -DTORCH_EXTENSION_NAME=testfunc -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++17
+cuda_dlink_post_cflags = 
+ldflags = 
+
+rule compile
+  command = $cxx -MMD -MF $out.d $cflags -c $in -o $out $post_cflags
+  depfile = $out.d
+  deps = gcc
+
+
+
+
+
+build /workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/Allocator.o: compile /workspace/CXL/testfunc/Allocator.cpp
+build /workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/CPUAllocator.o: compile /workspace/CXL/testfunc/CPUAllocator.cpp
+build /workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/alloc_cpu.o: compile /workspace/CXL/testfunc/alloc_cpu.cpp
+build /workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/numa.o: compile /workspace/CXL/testfunc/numa.cpp
+build /workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/testfunc.o: compile /workspace/CXL/testfunc/testfunc.cpp
+build /workspace/CXL/testfunc/build/temp.linux-x86_64-cpython-310/testfunc.wrapper.o: compile /workspace/CXL/testfunc/testfunc.wrapper.cpp
+
+
+
+
+
+

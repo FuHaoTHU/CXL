@@ -185,16 +185,16 @@ struct C10_API Allocator {
 // This context is inefficient because we have to do a dynamic
 // allocation InefficientStdFunctionContext, on top of the dynamic
 // allocation which is implied by std::function itself.
-struct C10_API InefficientStdFunctionContext {
-  std::unique_ptr<void, std::function<void(void*)>> ptr_;
-  InefficientStdFunctionContext(
-      std::unique_ptr<void, std::function<void(void*)>>&& ptr)
-      : ptr_(std::move(ptr)) {}
-  static DataPtr makeDataPtr(
-      void* ptr,
-      const std::function<void(void*)>& deleter,
-      Device device);
-};
+//struct C10_API InefficientStdFunctionContext {
+//  std::unique_ptr<void, std::function<void(void*)>> ptr_;
+//  InefficientStdFunctionContext(
+//      std::unique_ptr<void, std::function<void(void*)>>&& ptr)
+//      : ptr_(std::move(ptr)) {}
+//  static DataPtr makeDataPtr(
+//      void* ptr,
+//      const std::function<void(void*)>& deleter,
+//      Device device);
+//};
 
 /** Set the allocator for DeviceType `t`. The passed in allocator pointer is
  *  expected to have static lifetime; this function does NOT take ownership
@@ -222,7 +222,7 @@ struct AllocatorRegisterer {
 
 #define REGISTER_ALLOCATOR(t, f)                       \
   namespace {                                          \
-  static c10::AllocatorRegisterer<t> g_allocator_d(f); \
+  static c10::distcxl::AllocatorRegisterer<t> g_allocator_d(f); \
   }
 
 // An interface for reporting thread local memory usage

@@ -5,11 +5,11 @@
 
 #include <limits>
 
-namespace at::detail::distcxl {
+namespace c10::distcxl {
 
 c10::Allocator* GetCPUAllocatorMaybePinned(bool pin_memory) {
   if (pin_memory) {
-    return at::detail::getCUDAHooks().getPinnedMemoryAllocator();
+	return at::detail::getCUDAHooks().getPinnedMemoryAllocator();
   }
   return c10::distcxl::GetCPUAllocator();
 }
@@ -143,14 +143,14 @@ SymInt computeStorageNbytes(
 }
 
 template <typename T>
-TensorBase _empty_generic(
+at::TensorBase _empty_generic(
     ArrayRef<T> size,
     c10::Allocator* allocator,
     c10::DispatchKeySet ks,
     ScalarType scalar_type,
     c10::optional<c10::MemoryFormat> memory_format_opt) {
-  at::detail::check_size_nonnegative(size);
-  at::detail::raise_warning_for_complex_half(scalar_type);
+  c10::distcxl::check_size_nonnegative(size);
+  c10::distcxl::raise_warning_for_complex_half(scalar_type);
   caffe2::TypeMeta dtype = scalarTypeToTypeMeta(scalar_type);
   auto size_bytes = computeStorageNbytesContiguous(size, dtype.itemsize());
   auto storage_impl = c10::make_intrusive<StorageImpl>(
@@ -159,7 +159,7 @@ TensorBase _empty_generic(
       allocator,
       /*resizeable=*/true);
 
-  auto tensor = detail::make_tensor_base<TensorImpl>(
+  auto tensor = at::detail::make_tensor_base<TensorImpl>(
       std::move(storage_impl), ks, dtype);
   // Default TensorImpl has size [0]
   // NB: test for meta dispatch key to avoid guarding on zero-ness
@@ -177,7 +177,7 @@ TensorBase _empty_generic(
   return tensor;
 }
 
-TensorBase empty_generic(
+at::TensorBase empty_generic(
     IntArrayRef size,
     c10::Allocator* allocator,
     c10::DispatchKeySet ks,
@@ -187,14 +187,14 @@ TensorBase empty_generic(
 }
 
 
-TensorBase empty_cpu_1(IntArrayRef size, ScalarType dtype, bool pin_memory,
+at::TensorBase empty_cpu_1(IntArrayRef size, ScalarType dtype, bool pin_memory,
                      c10::optional<c10::MemoryFormat> memory_format_opt) {
   auto allocator = GetCPUAllocatorMaybePinned(pin_memory);
   constexpr c10::DispatchKeySet cpu_ks(c10::DispatchKey::CPU);
   return empty_generic(size, allocator, cpu_ks, dtype, memory_format_opt);
 }
 
-TensorBase empty_cpu_2(
+at::TensorBase empty_cpu_2(
     IntArrayRef size,
     c10::optional<ScalarType> dtype_opt,
     c10::optional<Layout> layout_opt,
@@ -209,9 +209,9 @@ TensorBase empty_cpu_2(
   return empty_cpu_1(size, dtype, pin_memory, memory_format_opt);
 }
 
-TensorBase empty_cpu_3(
+at::TensorBase empty_cpu_3(
     IntArrayRef size, const TensorOptions &options) {
-  return at::detail::distcxl::empty_cpu_2(
+  return empty_cpu_2(
       size,
       optTypeMetaToScalarType(options.dtype_opt()),
       options.layout_opt(),
@@ -219,4 +219,6 @@ TensorBase empty_cpu_3(
       options.pinned_memory_opt(),
       options.memory_format_opt());
 }
+
+} //end namespace
 

@@ -1,0 +1,11 @@
+Allocator.cpp
+CPUAllocator.cpp
+alloc_cpu.cpp
+numa.cpp
+setup.py
+testfunc.cpp
+testfunc.wrapper.cpp
+testfunc.egg-info/PKG-INFO
+testfunc.egg-info/SOURCES.txt
+testfunc.egg-info/dependency_links.txt
+testfunc.egg-info/top_level.txt

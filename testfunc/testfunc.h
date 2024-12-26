@@ -1,7 +1,7 @@
 #pragma once
 #include <ATen/core/TensorBase.h>
 
-namespace at::detail::distcxl {
+namespace c10::distcxl {
 
 inline void check_size_nonnegative(ArrayRef<int64_t> size) {
   for (const auto& x : size) {
@@ -44,20 +44,20 @@ TORCH_API SymInt computeStorageNbytes(
     const SymInt& itemsize,
     const SymInt& storage_offset = 0);
 
-TORCH_API TensorBase empty_generic(
+TORCH_API at::TensorBase empty_generic(
     IntArrayRef size,
     c10::Allocator* allocator,
     c10::DispatchKeySet ks,
     ScalarType scalar_type,
     c10::optional<c10::MemoryFormat> memory_format_opt);
 
-TORCH_API TensorBase empty_cpu_1(
+TORCH_API at::TensorBase empty_cpu_1(
     IntArrayRef size,
     ScalarType dtype,
     bool pin_memory = false,
     c10::optional<c10::MemoryFormat> memory_format_opt = c10::nullopt);
 
-TORCH_API TensorBase empty_cpu_2(
+TORCH_API at::TensorBase empty_cpu_2(
     IntArrayRef size,
     c10::optional<ScalarType> dtype_opt,
     c10::optional<Layout> layout_opt,
@@ -65,5 +65,6 @@ TORCH_API TensorBase empty_cpu_2(
     c10::optional<bool> pin_memory_opt,
     c10::optional<c10::MemoryFormat> memory_format_opt);
 
-TORCH_API TensorBase empty_cpu_3(IntArrayRef size, const TensorOptions& options);
+TORCH_API at::TensorBase empty_cpu_3(IntArrayRef size, const TensorOptions& options);
 
+}
