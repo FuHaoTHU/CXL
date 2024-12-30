@@ -21,11 +21,11 @@ def main(
     is_dist_high: bool = True,
     offload_type: str = None,
     memory_threshold: float = 1,
-    gpu_memory_size: int = 32 * 1024 * 1024 * 1024,
-    cxl_memory_size: int = 700 * 1024 * 1024 * 1024,
-    local_memory_size: int = 64 * 1024 * 1024 * 1024,###########
-    cxl_load_time_per_mb:float = 0.015,
-    local_load_time_per_mb:float = 0.05,
+    gpu_memory_size: int = 32 * 1024,
+    cxl_memory_size: int = 700 * 1024,
+    local_memory_size: int = 64 * 1024,###########
+    cxl_load_time_per_mb:float = 0.0078125,
+    local_load_time_per_mb:float = 0.03125,
     N: int = 300,
     backend: str = "distserve", 
 ):
@@ -103,13 +103,13 @@ if __name__ == '__main__':
         is_dist_high=True,
         offload_type='cxl',
         memory_threshold=1,
-        gpu_memory_size=32 * 1024 * 1024 * 1024,
+        gpu_memory_size=32 * 1024,
         #cxl_memory_size=0,
-        cxl_memory_size=700 * 1024 * 1024 * 1024,
-        #local_memory_size=64 * 1024 * 1024 * 1024,
+        cxl_memory_size=700 * 1024,
+        #local_memory_size=64  * 1024,
         local_memory_size=0,
-        cxl_load_time_per_mb=0.015,
-        local_load_time_per_mb=0.05,
+        cxl_load_time_per_mb=0.0078125,
+        local_load_time_per_mb=0.03125,
         N=300,
         backend='distserve'
     )

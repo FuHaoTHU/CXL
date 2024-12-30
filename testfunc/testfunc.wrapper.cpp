@@ -7,8 +7,9 @@
 #include "alloc_cpu.h"
 #include "numa.h"
 #include <torch/extension.h>
-#include <torch/csrc/MemoryFormat.h>
-#include <torch/csrc/Device.h>
+#include <c10/core/MemoryFormat.h>
+#include <c10/core/Device.h>
+#include <c10/core/TensorImpl.h>
 
 namespace py = pybind11;
 

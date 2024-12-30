@@ -19,11 +19,11 @@ class DisaggCluster:
         # 新增参数##########################################
         offload_type: str = None,     # 'cxl', 'local', None
         memory_threshold: float = 0.8, # 默认内存阈值
-        gpu_memory_size: int = 32 * 1024 * 1024 * 1024,  # 32GB GPU内存
-        cxl_memory_size: int = 700 * 1024 * 1024 * 1024, # 700GB CXL内存
-        local_memory_size: int = 64 * 1024 * 1024 * 1024,# 64GB 本地内存
-        cxl_load_time_per_mb: float = 0.015,             # CXL加载延迟
-        local_load_time_per_mb: float = 0.05,            # 本地内存加载延迟
+        gpu_memory_size: int = 32 * 1024,  # 32GB GPU内存
+        cxl_memory_size: int = 700 * 1024, # 700GB CXL内存
+        local_memory_size: int = 64 * 1024,# 64GB 本地内存
+        cxl_load_time_per_mb: float = 0.0078125,             # CXL加载延迟
+        local_load_time_per_mb: float = 0.03125,            # 本地内存加载延迟
     ):
         
         # 保存新增的配置

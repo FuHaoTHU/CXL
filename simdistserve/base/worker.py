@@ -56,9 +56,9 @@ class Worker:
         cxl_load_time_per_mb: float = 0.0078125,  # CXL加载延迟ms/MB (4链路)
         local_load_time_per_mb: float = 0.03125,  # 本地内存加载延迟（假设比CXL慢）
         offload_type: str = 'cxl',  # 'cxl', 'local', None
-        gpu_memory_size = 32000, ##32GB
-        cxl_memory_size = 700000, ##700GB
-        local_memory_size = 64000, ##64GB
+        gpu_memory_size = 32 * 1024, ##32GB
+        cxl_memory_size = 700 * 1024, ##700GB
+        local_memory_size = 64 * 1024, ##64GB
     ):
         self.env = env
         self.cluster = cluster  # Refer to the cluster of init.
@@ -362,7 +362,7 @@ class Worker:
         print(f"\n[Worker {self.wid}] Calculating load delay:")
         print(f"- Number of requests to load: {len(requests)}")
         for req in requests:
-            req_size_mb = req.current_kvcache_size/1024/1024  # 转换为MB################
+            req_size_mb = req.current_kvcache_size
             if req.location == 'cxl':
                 # CXL加载延迟
                 req_delay = req_size_mb * self.cxl_load_time_per_mb  # 使用MB单位计算延迟
@@ -500,7 +500,7 @@ class Worker:
         # for r in decode_reqs:
         #     r.do_decode(wid=self.wid)
         
-        return decode_reqs
+        #return decode_reqs
 
 
     def _enter_prefill(self) -> 'List[Request]':
@@ -684,7 +684,7 @@ class Worker:
             if self.stats['request_count'] > 0 else 0
     )
 
-        batch_size = len(decode_reqs)
+        
         print(f"Processing batch of {batch_size} requests")
         
         self._log_event(
@@ -706,7 +706,7 @@ class Worker:
             engine_type=self.engine_type,
         )
         print(f"Base decode delay: {delay:.2f}s")
-        self.stats['total_delay'] = delay
+        #self.stats['total_delay'] = delay
         
         # 4. 处理加载回GPU（如果有卸载策略）
         if self.offload_type:
@@ -717,19 +717,21 @@ class Worker:
             # 计算加载延迟并执行加载
             load_delay = self.calculate_load_delay(requests_to_load)
             print(f"Additional load delay: {load_delay:.2f}s")
+            delay += load_delay
             #for req in requests_to_load:
             #    old_location = req.location
             #    self.update_memory_usage(req, old_location, 'gpu')
             #    self.stats['load_amount'] += req.current_kvcache_size
+            #print(f"Total delay for this cycle: {self.stats['total_delay']:.2f}s")
             
-            print(f"Total delay for this cycle: {self.stats['total_delay']:.2f}s")
-            # delay += load_delay
-
+    
         # 5. 更新统计信息
         num_tokens = sum(x.current_context_len for x in decode_reqs)
         self.stats['total_tokens'] += num_tokens
         if self.is_first_in_pipeline:
             delay += self.add_ray_overhead(num_tokens)
+        self.stats['total_delay'] = delay
+        print(f"Total delay for this cycle: {self.stats['total_delay']:.2f}s")
         self.TPOP = delay / num_tokens if num_tokens > 0 else 0
 
         # 6. 执行延迟并处理结果

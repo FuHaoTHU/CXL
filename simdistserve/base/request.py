@@ -47,7 +47,7 @@ class Request:
         req_id: int = None,               # 请求ID
         req_init_counter=-1,              # 初始计数器
         prefill_length: int = 512,        # 预填充长度
-        output_lens: int = 128000000,           # 输出长度################################设为非定值
+        output_lens: int = 32000,           # 输出长度################################设为非定值
         schedule_wait: int = 0,            # 调度等待时间
         offload_type: str = None
     ):
@@ -115,7 +115,7 @@ class Request:
         return self.prefill_lens + max(0, self.counter)
     @property
     def current_kvcache_size(self):
-        return 2 * 32 * 32 * 128 * 2 * self.current_context_len
+        return (2 * 32 * 32 * 128 * 2 * self.current_context_len)/1024/1024
 
 
     ###################################
@@ -150,17 +150,17 @@ class Request:
 
 
 #####################################################
-    def offload_to_cxl(self, wid=None):
-        """记录卸载开始事件"""
-        self._log_event(E_START_OFFLOAD, wid=wid)
-        self.move_to_cxl()
-        self._log_event(E_FINISH_OFFLOAD, wid=wid)
-
-    def load_to_gpu(self, wid=None):
-        """记录加载事件"""
-        self._log_event(E_START_LOAD, wid=wid)
-        self.move_to_gpu()
-        self._log_event(E_FINISH_LOAD, wid=wid)
+#    def offload_to_cxl(self, wid=None):
+#        """记录卸载开始事件"""
+#        self._log_event(E_START_OFFLOAD, wid=wid)
+#        self.move_to_cxl()
+#        self._log_event(E_FINISH_OFFLOAD, wid=wid)
+#
+#    def load_to_gpu(self, wid=None):
+#        """记录加载事件"""
+#        self._log_event(E_START_LOAD, wid=wid)
+#        self.move_to_gpu()
+#        self._log_event(E_FINISH_LOAD, wid=wid)
 #####################################################
     def _log_event(self, event, wid=-1):
         """记录事件到日志"""

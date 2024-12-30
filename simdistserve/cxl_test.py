@@ -49,9 +49,9 @@ def main(
             '--pp-decode', f'{pp_cross * pp_decode}',
             '--offload_type', f'{offload_type}',
             '--memory-threshold', f'{memory_threshold}',  
-            '--gpu-memory-size', f'{32 * 1024 * 1024 * 1024}',  # 32GB
-            '--cxl-memory-size',  f'{700 * 1024 * 1024 * 1024}' if offload_type == 'cxl' else '0',  # 700GB for CXL
-            '--local-memory-size', f'{64 * 1024 * 1024 * 1024}' if offload_type == 'local' else '0',  # 64GB for local
+            '--gpu-memory-size', f'{32 * 1024}',  # 32GB
+            '--cxl-memory-size',  f'{700 * 1024}' if offload_type == 'cxl' else '0',  # 700GB for CXL
+            '--local-memory-size', f'{64 * 1024}' if offload_type == 'local' else '0',  # 64GB for local
             '--cxl-load-time-per-mb', f'{cxl_load_time_per_mb}',
             '--local-load-time-per-mb', f'{local_load_time_per_mb}',
             '--N', f'{N}'

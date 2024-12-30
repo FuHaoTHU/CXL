@@ -82,15 +82,15 @@ def parse_args(args_=None):
                         help='Offload type: cxl, local, None')
     parser.add_argument('--memory-threshold', type=float, default=0.8,
                         help='Memory threshold')
-    parser.add_argument('--gpu-memory-size', type=int, default=32 * 1024 * 1024 * 1024,
+    parser.add_argument('--gpu-memory-size', type=int, default=32 * 1024,
                         help='GPU memory size')
-    parser.add_argument('--cxl-memory-size', type=int, default=700 * 1024 * 1024 * 1024,
+    parser.add_argument('--cxl-memory-size', type=int, default=700 * 1024,
                         help='CXL memory size')
     parser.add_argument('--local-memory-size', type=int, default=0,
                         help='Local memory size')
-    parser.add_argument('--cxl-load-time-per-mb', type=float, default=0.015,
+    parser.add_argument('--cxl-load-time-per-mb', type=float, default=0.0078125,
                         help='CXL load time per MB')
-    parser.add_argument('--local-load-time-per-mb', type=float, default=0.05,
+    parser.add_argument('--local-load-time-per-mb', type=float, default=0.03125,
                         help='Local load time per MB')
 
     args = parser.parse_args(args=args_)
@@ -279,12 +279,13 @@ def main(args, outputs = None):
             total_tokens += worker.stats['total_tokens']
             print(f"Successfully got total_tokens: {worker.stats['total_tokens']}")
             #total_time += worker.stats['total_delay']
-            if args.offload_type == 'cxl':
-                total_time += worker.stats['load_amount'] * 10**(-6) * 0.0078125 + worker.stats['total_delay']
-            elif args.offload_type == 'local':
-                total_time += worker.stats['load_amount'] * 10**(-6) * 0.03125 + worker.stats['total_delay']
-            else:
-                total_time += worker.stats['total_delay']
+            #if args.offload_type == 'cxl':
+            #    total_time += worker.stats['load_amount'] * 0.0078125 + worker.stats['total_delay']
+            #elif args.offload_type == 'local':
+            #    total_time += worker.stats['load_amount'] * 0.03125 + worker.stats['total_delay']
+            #else:
+            #    total_time += worker.stats['total_delay']
+            total_time += worker.stats['total_delay']
             print(f"Successfully got total_delay: {worker.stats['total_delay']}")
             offload_amount += worker.stats['offload_amount']
             print(f"Successfully got offload_amount: {worker.stats['offload_amount']}")
