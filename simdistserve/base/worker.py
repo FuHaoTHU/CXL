@@ -51,10 +51,10 @@ class Worker:
         decode_max_tokens=10 ** 7,
         decode_back_pressure: float = 0.9,
         engine_type: Literal["distserve", "vllm"] = "distserve",
-        #########################  新增的属性  #########################
-        memory_threshold: float = 0.8,  # 内存使用率阈值
-        cxl_load_time_per_mb: float = 0.0078125,  # CXL加载延迟ms/MB (4链路)
-        local_load_time_per_mb: float = 0.03125,  # 本地内存加载延迟（假设比CXL慢）
+        #########################    #########################
+        memory_threshold: float = 0.8,  
+        cxl_load_time_per_mb: float = 0.0078125,  
+        local_load_time_per_mb: float = 0.03125,
         offload_type: str = 'cxl',  # 'cxl', 'local', None
         gpu_memory_size = 32 * 1024, ##32GB
         cxl_memory_size = 700 * 1024, ##700GB
@@ -102,19 +102,18 @@ class Worker:
 
         self.prefill_queue: 'deque[Request]' = deque()
         self.decode_queue: 'deque[Request]' = deque()
-        #self.cxl_queue: 'deque[Request]' = deque()
         self._prefill_ips: int = 0  # Elements in progress for prefill
         self._decode_ips: int = 0  # Elements in progress for decode
-        #self._cxl_ips: int = 0  # Elements in progress for cxl
         self._wakeup_event = env.event()
         self.log: 'list[tuple[float, str, int, int, int, list[int], list[int]]]' = []
 
         # Simulate scheduler delay in terms of number of decode rounds.
         self._prefill_sched_delay: int = 0
         self.engine_type = engine_type
-        # 新增内存管理相关属性#########
+        
         self.offload_type = offload_type
         self.memory_threshold = memory_threshold
+        self.load_memory_threshold = 0.8
         self.cxl_load_time_per_mb = cxl_load_time_per_mb
         self.local_load_time_per_mb = local_load_time_per_mb
         self.max_tokens_limit = self.decode_max_tokens
@@ -123,29 +122,23 @@ class Worker:
         self.local_memory_size = local_memory_size
         self.cxl_memory_used = 0
         self.local_memory_used = 0
-        # self.stats = {
-        #     'total_tokens': 0,
-        #     'offload_amount': 0,
-        #     'load_amount': 0,
-        #     'max_gpu_memory_usage': 0,
-        # }
         self.TPOP = 0
-        self.reset_stats()  # 使用方法来初始化###################
+        self.reset_stats()  
         pass
 
     def reset_stats(self):
-        """重置统计数据"""
+        
         self.stats = {
-            'total_dalay': 0,
+            'total_delay': 0,
             'total_tokens': 0,
             'offload_amount': 0,
             'load_amount': 0,
             'max_gpu_usage': 0,
-            'max_gpu_memory_usage': 0,  # 初始化 max_gpu_memory_usage 键
-            'request_count': 0,      # 添加请求计数
-            'offload_count': 0,      # 添加卸载操作计数
-            'load_count': 0,         # 添加加载操作计数
-            'avg_batch_size': 0     # 添加平均批处理大小
+            'max_gpu_memory_usage': 0,  
+            'request_count': 0,      
+            'offload_count': 0,     
+            'load_count': 0,       
+            'avg_batch_size': 0  
         }
 
     @property
@@ -191,6 +184,29 @@ class Worker:
 
         pass
 
+    def run_offload(self):
+        while True:
+            #yield self._wakeup_event
+            if self.decode_queue and self.check_memory_pressure:
+                print(f"Worker {self.wid} doing offload")
+                yield from self.select_requests_to_offload()
+            else:
+                pass
+            pass
+        pass
+
+    
+    def run_load(self):
+        while True:
+            #yield self._wakeup_event
+            if self.decode_queue and not self.check_memory_pressure:
+                print(f"Worker {self.wid} doing load")
+                yield from self.select_requests_to_load()
+            else:
+                pass
+            pass
+        pass
+
     def add_ray_overhead(self, sum_of_tokens) -> int:
         base_overhead = 2
         k = 0.0001
@@ -214,7 +230,7 @@ class Worker:
 
 
     def check_memory_pressure(self) -> bool:
-        """检查是否存在内存压力"""
+        
         current_gpu_usage = self.gpu_memory_usage()
         print(f"Current GPU memory usage: {current_gpu_usage:.4f}")
         return current_gpu_usage > self.memory_threshold
@@ -257,20 +273,20 @@ class Worker:
     #     return to_load
 
     def select_requests_to_offload(self):
-        """根据不同方案选择要卸载的请求"""
-        if not self.offload_type:  # 不卸载方案
+        
+        if not self.offload_type:  
             return []
             
         to_offload = []
         if self.offload_type == 'cxl':
-            # CXL方案：内存压力时基于优先级卸载
+            
             if not self.check_memory_pressure():
                 return []
                 
             sorted_requests = sorted(
                 [req for req in self.decode_queue if req.location == 'gpu'],
                 key=lambda req: req._calculate_priority()
-            )  # 按优先级升序，优先卸载低优先级
+            )  
 
             for req in sorted_requests:
                 if self.check_memory_pressure():
@@ -279,14 +295,15 @@ class Worker:
                         to_offload.append((req, 'cxl'))
                         self.update_memory_usage(req, req.location, 'cxl')
                         self.stats['offload_amount'] += req.current_kvcache_size
+                        self.stats['offload_count'] += 1
                         self.cxl_memory_used += req_size
                     else:
-                        break  # CXL内存已满
+                        break  
                 else:
-                    break # GPU使用率已经低于阈值，停止卸载
+                    break 
             self.stats['max_gpu_memory_usage'] = max(self.stats['max_gpu_memory_usage'], self.gpu_memory_usage())
         elif self.offload_type == 'local':
-            # 本地内存方案：内存压力时FIFO卸载
+            
             if not self.check_memory_pressure():
                 return []
 
@@ -299,121 +316,128 @@ class Worker:
                         to_offload.append((req, 'local'))
                         self.update_memory_usage(req, req.location, 'local')
                         self.stats['offload_amount'] += req.current_kvcache_size
+                        self.stats['offload_count'] += 1
                         self.local_memory_used += req_size
                     else:
-                        break  # 本地内存已满
+                        break  
                 else:
                     break  
             self.stats['max_gpu_memory_usage'] = max(self.stats['max_gpu_memory_usage'], self.gpu_memory_usage())
+
+        yield self.env.timeout(0)
         return to_offload
 
-    def select_requests_to_load(self, requests_to_offload):
-        """选择要加载回GPU的请求"""
-        if not self.offload_type:  # 不卸载方案
+    def select_requests_to_load(self):
+        
+        if not self.offload_type: 
             return []
             
         to_load = []
         
 
         if self.offload_type == 'cxl':
-            # 按优先级顺序加载CXL中的请求
+           
             offloaded_reqs = [req for req in self.decode_queue if req.location == 'cxl']
             sorted_reqs = sorted(
                 offloaded_reqs,
                 key=lambda req: req._calculate_priority(),
-                reverse=True  # 高优先级优先加载
+                reverse=True  
             )
 
             for req in sorted_reqs:
-                if self.gpu_memory_usage() + req.current_kvcache_size/self.gpu_memory_size > self.memory_threshold:
+                if self.gpu_memory_usage() + req.current_kvcache_size/self.gpu_memory_size > self.load_memory_threshold:
                     break
                 to_load.append(req)
                 self.update_memory_usage(req, req.location, 'gpu')
+                delay = req.current_kvcache_size * self.cxl_load_time_per_mb
+                self.stats['total_delay'] += delay
                 self.stats['load_amount'] += req.current_kvcache_size
+                self.stats['load_count'] += 1
                 self.cxl_memory_used -= req.current_kvcache_size
                 #current_gpu_usage += req.current_kvcache_size/self.gpu_memory_size
+                yield self.env.timeout(delay)
             self.stats['max_gpu_memory_usage'] = max(self.stats['max_gpu_memory_usage'], self.gpu_memory_usage())
 
         elif self.offload_type == 'local':
-            # FIFO顺序加载本地内存中的请求
+            
             offloaded_reqs = [req for req in self.decode_queue if req.location == 'local']
-            for req in offloaded_reqs:  # 保持FIFO顺序
-                if self.gpu_memory_usage() + req.current_kvcache_size/self.gpu_memory_size > self.memory_threshold:
+            for req in offloaded_reqs: 
+                if self.gpu_memory_usage() + req.current_kvcache_size/self.gpu_memory_size > self.load_memory_threshold:
                     break
                 to_load.append(req)
                 self.update_memory_usage(req, req.location, 'gpu')
+                delay = req.current_kvcache_size * self.local_load_time_per_mb
+                self.stats['total_delay'] += delay
                 self.stats['load_amount'] += req.current_kvcache_size
+                self.stats['load_count'] += 1
                 self.local_memory_used -= req.current_kvcache_size
                 #current_gpu_usage += req.current_kvcache_size/self.gpu_memory_size
+                yield self.env.timeout(delay)
             self.stats['max_gpu_memory_usage'] = max(self.stats['max_gpu_memory_usage'], self.gpu_memory_usage())
 
         return to_load
 
 
     
-    def calculate_load_delay(self, requests):
-        """计算加载延迟
-        根据不同的存储类型计算不同的加载延迟
-        """
-        if not self.offload_type:#or not requests:  # 无卸载方案
-            return 0
-            
-        total_delay = 0
-        print(f"\n[Worker {self.wid}] Calculating load delay:")
-        print(f"- Number of requests to load: {len(requests)}")
-        for req in requests:
-            req_size_mb = req.current_kvcache_size
-            if req.location == 'cxl':
-                # CXL加载延迟
-                req_delay = req_size_mb * self.cxl_load_time_per_mb  # 使用MB单位计算延迟
-                print(f"  CXL load - Size: {req_size_mb:.2f}MB, Delay: {req_delay:.2f}s")
-                total_delay += req_delay
-                # total_delay += (req.current_kvcache_size * self.cxl_load_time_per_mb)
-            elif req.location == 'local':
-                # 本地内存加载延迟
-                
-                req_delay = req_size_mb * self.local_load_time_per_mb  # 使用MB单位计算延迟
-                print(f"  Local load - Size: {req_size_mb:.2f}MB, Delay: {req_delay:.2f}s")
-                total_delay += req_delay
-                # total_delay += (req.current_kvcache_size * self.local_load_time_per_mb)
-                    
-        print(f"Total load delay: {total_delay:.2f}s")
-        return total_delay
+#    def calculate_load_delay(self, requests):
+#        """计算加载延迟
+#        根据不同的存储类型计算不同的加载延迟
+#        """
+#        if not self.offload_type:#or not requests:  # 无卸载方案
+#            return 0
+#            
+#        total_delay = 0
+#        print(f"\n[Worker {self.wid}] Calculating load delay:")
+#        print(f"- Number of requests to load: {len(requests)}")
+#        for req in requests:
+#            req_size_mb = req.current_kvcache_size
+#            #print(f"LOAD REQUEST POSITION:{req.location},REQ_SIZE:{req_size_mb}")
+#            if req.location == 'cxl':
+#                # CXL加载延迟
+#                req_delay = req_size_mb * self.cxl_load_time_per_mb  # 使用MB单位计算延迟
+#                print(f"  CXL load - Size: {req_size_mb:.2f}MB, Delay: {req_delay:.2f}s")
+#                total_delay += req_delay
+#                # total_delay += (req.current_kvcache_size * self.cxl_load_time_per_mb)
+#            elif req.location == 'local':
+#                # 本地内存加载延迟
+#                
+#                req_delay = req_size_mb * self.local_load_time_per_mb  # 使用MB单位计算延迟
+#                print(f"  Local load - Size: {req_size_mb:.2f}MB, Delay: {req_delay:.2f}s")
+#                total_delay += req_delay
+#                # total_delay += (req.current_kvcache_size * self.local_load_time_per_mb)
+#                    
+#        print(f"Total load delay: {total_delay:.2f}s")
+#        return total_delay
     
 
     def check_gpu_memory_available(self, request_size: int) -> bool:
-        """检查GPU内存是否有足够空间"""
+        
         return (self.gpu_memory_usage() + request_size/self.gpu_memory_size) <= self.memory_threshold
 
     def check_cxl_memory_available(self, request_size: int) -> bool:
-        """检查CXL内存是否有足够空间"""
+       
         return (self.cxl_memory_used + request_size) <= self.cxl_memory_size
 
     def check_local_memory_available(self, request_size: int) -> bool:
-        """检查本地内存是否有足够空间"""
+      
         return (self.local_memory_used + request_size) <= self.local_memory_size
 
     def update_memory_usage(self, request, old_location: str, new_location: str):
-        """更新内存使用情况
-        Args:
-            request: 请求对象
-            old_location: 原位置 ('gpu', 'cxl', 'local')
-            new_location: 新位置 ('gpu', 'cxl', 'local')
-        """
+
         size = request.current_kvcache_size
-        # 从原位置移除
+
         if old_location == 'cxl':
             self.cxl_memory_used -= size
         elif old_location == 'local':
             self.local_memory_used -= size
             
-        # 添加到新位置
+        
         if new_location == 'cxl':
             self.cxl_memory_used += size
         elif new_location == 'local':
             self.local_memory_used += size
 
-        # 更新请求位置
+        
         request.move_to_storage(new_location)
 
 
@@ -453,15 +477,14 @@ class Worker:
         # TODO: Hack: Must revert this to use the max token given
         # watermark = 0.9
         # decode_max_tokens = self.decode_max_tokens * watermark
-        decode_max_tokens = 50000
+        decode_max_tokens = 65536
         decode_reqs = []
     
         print(f"Starting _enter_decodes with queue length: {len(self.decode_queue)}")
     
-    # 将deque转换为列表进行处理
         try:
             queue_list = list(self.decode_queue)
-            to_remove = []  # 记录要移除的索引
+            to_remove = []  
     
             for idx, req in enumerate(queue_list):
                 if req.location == "gpu":
@@ -472,13 +495,10 @@ class Worker:
                     decode_max_tokens -= (req.current_context_len + 1)
                     decode_reqs.append(req)
                     to_remove.append(idx)
-    
-    # 从原deque中移除已处理的请求
-    # 从后向前移除，避免索引变化的问题
             self.decode_queue = deque([req for i, req in enumerate(queue_list) if i not in to_remove])
         except Exception as e:
             print(f"Error in _enter_decodes: {e}")
-            return []  # 确保出错时也返回空列表
+            return []  
     
         print(f"Finished _enter_decodes, selected {len(decode_reqs)} requests")
         return decode_reqs
@@ -588,11 +608,11 @@ class Worker:
         print(f"Worker {self.wid}: Processing {len(decode_reqs)} decode requests")
         for r in decode_reqs:
             r.finish_decode(is_finished_one_round=self.is_last_in_pipeline, next_wid=next_wid)
-            # 修改：总是将未完成的请求返回给调度器
+            
         next_decode_batch = [r for r in decode_reqs if not r.should_finish()]
         if next_decode_batch:
             print(f"Worker {self.wid}: Forwarding {len(next_decode_batch)} requests to scheduler")
-            self.forward_decode(next_decode_batch, to_scheduler=True)  # 强制返回给调度器
+            self.forward_decode(next_decode_batch, to_scheduler=True)  
         else:
             print(f"Worker {self.wid}: All requests completed, nothing to forward")
 
@@ -645,37 +665,31 @@ class Worker:
         return
 
     def do_decode(self):
-        """修改后的解码处理函数，包含完整的内存管理"""
-        # 1. 更新内存使用统计
+        
+        # 1.
         print(f"Worker {self.wid} starting decode process...")
         #self.stats['max_gpu_memory_usage'] = max(self.stats['max_gpu_memory_usage'], self.gpu_memory_usage())
         print(f"Worker {self.wid} checking memory pressure...")
 
-        requests_to_offload = []  # 初始化为空列表
-        requests_to_load = []     # 初始化为空列表 
+        #requests_to_offload = []  
+        #requests_to_load = []      
         
 
-        # 2. 处理内存压力（如果有卸载策略）
-        if self.offload_type and self.check_memory_pressure():
-            # 选择要卸载的请求
-            print(f"Memory pressure detected, proceeding with offload...")
-            requests_to_offload = self.select_requests_to_offload()
-            self.stats['offload_count'] += len(requests_to_offload)
-            # 执行卸载
-            #for req, target_location in requests_to_offload:
-            #    old_location = req.location
-            #    self.update_memory_usage(req, old_location, target_location)
-            #    self.stats['offload_amount'] += req.current_kvcache_size
-        # 更新计数
+        # 2.
+        #if self.offload_type and self.check_memory_pressure():
+        #    print(f"Memory pressure detected, proceeding with offload...")
+        #    requests_to_offload = self.select_requests_to_offload()
+        #    self.stats['offload_count'] += len(requests_to_offload)
+           
 
 
-        # 3. 处理decode请求
-        try:
-            decode_reqs = self._enter_decodes(self.decode_max_tokens)
-        except Exception as e:
-            print(f"Error in getting decode requests: {e}")
-            decode_reqs = []  # 确保即使出错也有一个空列表
-
+        # 3. 
+        
+        decode_reqs = self._enter_decodes(self.decode_max_tokens)
+        #except Exception as e:
+        #    print(f"Error in getting decode requests: {e}")
+        #    decode_reqs = []  
+        
 
         batch_size = len(decode_reqs)
         self.stats['request_count'] += batch_size
@@ -696,7 +710,7 @@ class Worker:
         
         _token_generated_list = [x.current_context_len + 1 for x in decode_reqs]
         print(f"Total tokens to generate: {sum(_token_generated_list)}")
-        # 计算基础decode时间
+        
         delay = get_decode_time(
             batch_size, 
             pp=self.cluster.PP_decode,
@@ -708,33 +722,25 @@ class Worker:
         print(f"Base decode delay: {delay:.2f}s")
         #self.stats['total_delay'] = delay
         
-        # 4. 处理加载回GPU（如果有卸载策略）
-        if self.offload_type:
-            # 选择要加载的请求
-            requests_to_load = self.select_requests_to_load(decode_reqs)
-            self.stats['load_count'] += len(requests_to_load)
-            print(f"XXXXX{len(requests_to_load)}")
-            # 计算加载延迟并执行加载
-            load_delay = self.calculate_load_delay(requests_to_load)
-            print(f"Additional load delay: {load_delay:.2f}s")
-            delay += load_delay
-            #for req in requests_to_load:
-            #    old_location = req.location
-            #    self.update_memory_usage(req, old_location, 'gpu')
-            #    self.stats['load_amount'] += req.current_kvcache_size
-            #print(f"Total delay for this cycle: {self.stats['total_delay']:.2f}s")
-            
+        # 4. 
+        #if self.offload_type:
+        #
+        #    requests_to_load = self.select_requests_to_load() #modified:changed 'decode_reqs'cause all these requests have label 'gpu' due to '_enter'
+        #    self.stats['load_count'] += len(requests_to_load)
+        #    print(f"XXXXX{len(requests_to_load)}")
+        
+           
     
-        # 5. 更新统计信息
+        # 5.
         num_tokens = sum(x.current_context_len for x in decode_reqs)
         self.stats['total_tokens'] += num_tokens
         if self.is_first_in_pipeline:
             delay += self.add_ray_overhead(num_tokens)
-        self.stats['total_delay'] = delay
+        self.stats['total_delay'] += delay
         print(f"Total delay for this cycle: {self.stats['total_delay']:.2f}s")
         self.TPOP = delay / num_tokens if num_tokens > 0 else 0
 
-        # 6. 执行延迟并处理结果
+        # 6. 
         yield self.env.timeout(delay)
         self._exit_decode(decode_reqs)
 

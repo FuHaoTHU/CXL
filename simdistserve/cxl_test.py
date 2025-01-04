@@ -19,7 +19,7 @@ from pathlib import Path
 # to query the number of CPUs
 MAX_CPU_COUNT = min(os.cpu_count() - 2, 32)
 
-def main(
+def run_cxl_exp(
         model_type: ModelTypes,
         # config
         # - distserve: (pp_cross, tp_prefill, pp_prefill, tp_decode, pp_decode)
@@ -35,11 +35,11 @@ def main(
         N: int = 300,#########
         backend: str = 'distserve',#########
 ):  
-    print(f"CXL test starting with model: {model_type}, config: {config}")  # 检查是否进入此函数
+    print(f"CXL test starting with model: {model_type}, config: {config}")  
     N = str(N)
 
     if backend == 'distserve':
-        print(f"Preparing distserve config...")  # 检查配置准备
+        print(f"Preparing distserve config...") 
         (pp_cross, tp_prefill, pp_prefill, tp_decode, pp_decode) = config
         num_gpu = pp_cross * (tp_prefill * pp_prefill + tp_decode * pp_decode)
         config_args = [
@@ -71,7 +71,7 @@ def main(
     fixed_args = [
         '--arrival', 'poisson',
         '--seed', '0',
-        '--model', model_type,  # zhijie使用
+        '--model', model_type,  
         '--workload', 'sharegpt',
         '--slas', '[]',
         '--slo-scales', '[1]',
@@ -82,25 +82,25 @@ def main(
     args = [str(i) for i in args]
     args = parse_args(args)
 
-    print(f"Running experiment with args: {args}")  # 检查最终参数
+    print(f"Running experiment with args: {args}")  
 
-    """使用二分查找找到最优的GPU内存使用率阈值（仅CXL方案使用）"""
+    
     print("\nStarting optimal threshold search")
     # if args.offload_type != 'cxl':
     #     print("Not CXL mode, returning default threshold")
    
     if args.offload_type == 'cxl':
 
-        left, right = 0.3, 1.0  # 搜索范围：30%到100%
+        left, right = 0.3, 1.0  
         best_threshold = memory_threshold
         best_throughput = float('-inf')
         iteration = 0
-
-        while right - left > 0.01:
+        
+        while (right - left) > 0.01:
             iteration += 1
             mid = (left + right) / 2
             args.memory_threshold = mid
-            print(f"\nIteration {iteration}, testing threshold: {mid}")
+            print(f"Iteration {iteration}, testing threshold: {mid}")
             STATS = run_experiment(args)
             print(f"Throughput at threshold {mid}: {STATS['throughput']}")
             if STATS['throughput'] > best_throughput:
@@ -123,16 +123,16 @@ def main(
         print(f"Throughput is {STATS_FINAL['throughput']}")
         return STATS_FINAL
 
-run_cxl_exp = main
+
 
 # def find_optimal_threshold(self):
-#     """使用二分查找找到最优的GPU内存使用率阈值（仅CXL方案使用）"""
+#     
 #     print("\nStarting optimal threshold search")
 #     if self.offload_type != 'cxl':
 #         print("Not CXL mode, returning default threshold")
 #         return self.memory_threshold
 
-#     left, right = 0.3, 1.0  # 搜索范围：30%到100%
+#     left, right = 0.3, 1.0  
 #     best_threshold = self.memory_threshold
 #     best_throughput = float('-inf')
 #     current_TPOP = 0
@@ -160,23 +160,23 @@ run_cxl_exp = main
 #     return best_threshold, current_TPOP    #########Modified#########
 
 # def evaluate_threshold(self, threshold):
-#     """评估特定阈值下的性能"""
-#     # 设置新阈值
+# 
+
 #     print(f"\nEvaluating threshold: {threshold}")
     
     
 
-# # 更新所有worker的阈值
+# 
 #     self.memory_threshold = threshold
 #     for worker in self.get_all_workers():
 #         worker.memory_threshold = threshold
 #         self.env.process(worker.run()) ###################
-#         # worker.run()   #运行
+#         # worker.run()  
 
 #     self.env.run(until=self.env.now + 1000)
         
 
-# # 计算并返回性能分数
+#
 #     performance, TPOP, Total_offload_amount, Total_load_amount = self.calculate_performance()
 #     print(f"Evaluation results for threshold {threshold}:")
 #     print(f"- Throughput: {performance}")
@@ -186,20 +186,20 @@ run_cxl_exp = main
 
 
 # def calculate_performance(self):
-#     """计算当前配置下的性能分数
-# 主要关注吞吐量：生成的总token数/总时间
-#     """
+
+# �
+# 
 #     print(f"\nCalculating performance at simulation time: {self.env.now}")
 #     total_tokens = 0
 #     TPOP = 0
 #     count = 0
 #     total_offload_amount = 0
 #     total_load_amount = 0
-#     # 展平 decode_instances 列表
+#     
 #     decode_workers = set(worker for instance in self.decode_instances for worker in instance)
 #     print("Checking all workers status:")
 #     for worker in self.get_all_workers():
-#     # 统计所有完成的请求生成的token数、TPOP
+#     
 #         print(f"Worker {worker.wid}:")
 #         print(f"  - total_tokens: {worker.stats['total_tokens']}")
 #         print(f"  - current time: {self.env.now}")
@@ -221,17 +221,17 @@ run_cxl_exp = main
 #     #   return float('-inf'),0,0,0
     
 #     avg_TPOP = TPOP/count if count > 0 else 0
-#     # 计算吞吐量：tokens/s
+#     
 #     throughput = total_tokens / self.env.now if self.env.now > 0 else 0
 #     print(f"- Throughput: {throughput}")
 #     print(f"- Average TPOP: {avg_TPOP}")
 #     return throughput, avg_TPOP, total_offload_amount, total_load_amount  
 
 def run_throughput_comparison():
-    """运行吞吐量对比实验"""
+    
     results = {}
     
-    # 实验配置
+    
     models = ['13b', '66b', '175b']
     systems = [
         ('distserve', 'local', (1,1,1,1,1)),  # Distserve_local
@@ -263,14 +263,14 @@ def run_throughput_comparison():
         
         results[model] = model_results
 
-    # 保存结果
+    
     save_dir = Path("results")
     save_dir.mkdir(exist_ok=True)
     
     with open(save_dir / "throughput_comparison.json", 'w') as f:
         json.dump(results, f, indent=4)
         
-    # 打印结果
+    
     print("\nExperiment Results:")
     for model, model_results in results.items():
         print(f"\nModel: {model}")

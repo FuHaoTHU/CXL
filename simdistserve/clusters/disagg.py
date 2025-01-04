@@ -11,22 +11,22 @@ class DisaggCluster:
     def __init__(
         self,
         env,
-        N_prefill_instance: int = 1,   # 预填充实例数
-        N_decode_instance: int = 1,     # 解码实例数
-        PP_prefill: int = 1,           # 预填充流水线并行度
-        PP_decode: int = 1,            # 解码流水线并行度
-        worker_configs: 'Optional[WorkerConfig]' = None,  # worker配置
-        # 新增参数##########################################
-        offload_type: str = None,     # 'cxl', 'local', None
-        memory_threshold: float = 0.8, # 默认内存阈值
-        gpu_memory_size: int = 32 * 1024,  # 32GB GPU内存
-        cxl_memory_size: int = 700 * 1024, # 700GB CXL内存
-        local_memory_size: int = 64 * 1024,# 64GB 本地内存
-        cxl_load_time_per_mb: float = 0.0078125,             # CXL加载延迟
-        local_load_time_per_mb: float = 0.03125,            # 本地内存加载延迟
+        N_prefill_instance: int = 1,  
+        N_decode_instance: int = 1,  
+        PP_prefill: int = 1,        
+        PP_decode: int = 1,        
+        worker_configs: 'Optional[WorkerConfig]' = None,  
+        
+        offload_type: str = None,     
+        memory_threshold: float = 0.8,  
+        gpu_memory_size: int = 32 * 1024,   
+        cxl_memory_size: int = 700 * 1024, 
+        local_memory_size: int = 64 * 1024, 
+        cxl_load_time_per_mb: float = 0.0078125,            
+        local_load_time_per_mb: float = 0.03125,           
     ):
         
-        # 保存新增的配置
+        
         #######Modified#####
         self.current_TPOP = 0
         self.offload_type = offload_type
@@ -36,10 +36,10 @@ class DisaggCluster:
         self.local_memory_size = local_memory_size
 
 
-        self.prefill_instances = []  # 预填充实例列表
-        self.decode_instances = []   # 解码实例列表
-        worker_id = 0          # worker ID计数器
-        # 扩展worker配置
+        self.prefill_instances = [] 
+        self.decode_instances = []  
+        worker_id = 0         
+       
         worker_kwargs = dict(
             global_scheduler=None,
             offload_type=offload_type,
@@ -52,11 +52,11 @@ class DisaggCluster:
             **(worker_configs or {})
         )
         #####################################################
-        # 1. 创建预填充实例
+        # 1
         print("\nCreating prefill instances:")
         for inst_id in range(N_prefill_instance):
             instance = []
-            # 为每个实例创建PP_prefill个worker形成流水线
+            
             for i in range(PP_prefill):
                 worker = Worker(
                     env, 
@@ -69,14 +69,14 @@ class DisaggCluster:
                 instance.append(worker)
                 worker_id += 1
             
-            # 将实例内的worker连接成环形（最后一个连回第一个）
+           
             reduce(set_next_worker, chain(instance, (instance[0],)))
-            # 设置最后一个worker的特殊属性
+            
             instance[-1].is_last_in_pipeline = True
             instance[-1].should_request_stay = False
             self.prefill_instances.append(instance)
 
-        # 2. 创建解码实例（类似逻辑）
+        # 2
         print("\nCreating decode instances:")
         for inst_id in range(N_decode_instance):
             instance = []
@@ -101,24 +101,24 @@ class DisaggCluster:
         print("Prefill heads:", [inst[0].wid for inst in self.prefill_instances])
         print("Decode heads:", [inst[0].wid for inst in self.decode_instances])
 
-        # 3. 创建调度器
+        # 3
         scheduler = Scheduler(
             env,
-            prefill_heads=[i[0] for i in self.prefill_instances],  # 每个实例的第一个worker作为头
+            prefill_heads=[i[0] for i in self.prefill_instances], 
             decode_heads=[i[0] for i in self.decode_instances]
         )
         print("Created scheduler, setting up worker references...")
-        # 为所有 worker 设置全局调度器
+        
         for worker in self.get_all_workers():
             print(f"Setting global scheduler for worker {worker.wid}")
             worker.global_scheduler = scheduler
 
-        # 4. 设置预填充实例最后一个worker的调度器引用
-        for last_in_prefill in (inst[-1] for inst in self.prefill_instances):  # 修正变量名
+        # 4
+        for last_in_prefill in (inst[-1] for inst in self.prefill_instances): 
             last_in_prefill.global_scheduler = scheduler
             print(f"Set global scheduler for last prefill worker {last_in_prefill.wid}")
 
-        # 5. 保存集群状态
+        # 5
         self.env = env
         self.PP_prefill = PP_prefill
         self.PP_decode = PP_decode
@@ -234,11 +234,11 @@ class DisaggCluster:
     #     return throughput, avg_TPOP, total_offload_amount, total_load_amount         #################### Modified ############################
 ###################################################
     def get_all_workers(self):
-        """获取所有worker的列表"""
+        
         return list(
             chain(
-                chain(*self.prefill_instances),  # 展平预填充实例
-                chain(*self.decode_instances),   # 展平解码实例
+                chain(*self.prefill_instances),  
+                chain(*self.decode_instances), 
             )
         )
 
@@ -278,9 +278,11 @@ class DisaggCluster:
 
 
 
-    # 原有的运行逻辑
+    
         for instance in chain(self.prefill_instances, self.decode_instances):
             for worker in instance:
                 self.env.process(worker.run())
+                self.env.process(worker.run_offload())
+                self.env.process(worker.run_load())
         return self
 ###############################

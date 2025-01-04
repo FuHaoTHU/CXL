@@ -93,7 +93,7 @@ def get_gamma_interarrival(n: int, rate: float, cv: float, seed=None):
     result = NamedList(data).set_name(f'gamma(rate={rate}, cv={cv}, seed={seed})')
     return result
 ###########################################################################################################
-def apply_long_tail_distribution(requests: List[Request], mean: float = 4, sigma: float = 1) -> List[Request]:
+def apply_long_tail_distribution(requests: List[Request], mean: float = 4, sigma: float = 1) -> List[Request]: ##doesn't make such a big difference
     """
     对请求的output_lens应用长尾分布处理
     使用对数正态分布：长的更长，短的更短
@@ -120,12 +120,12 @@ def apply_long_tail_distribution(requests: List[Request], mean: float = 4, sigma
     
     # 更新请求的output_lens
     for req, new_len in zip(sorted_requests, new_lengths):
-        req.output_lens = new_len
+        req.output_lens = new_len 
     
     return sorted_requests
 
 # 修改sample_requests函数
-def sample_requests(dataset_path: PathLike, num_prompts: int) -> 'list[(int, int)]':
+def sample_requests_1(dataset_path: PathLike, num_prompts: int) -> 'list[(int, int)]':
     """
     从数据集采样并应用长尾分布
     """

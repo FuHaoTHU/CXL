@@ -5,7 +5,7 @@ from simdistserve.constants import ModelTypes
 
 
 def load_profile_data():
-    profile_data_path = Path(__file__).parent / "profile_data" / "max_num_tokens.csv"
+    profile_data_path = Path(__file__).parent / "profile_data" / "max_num_tokens_1.csv"
     with open(profile_data_path) as f:
         _profile_data = pd.read_csv(f)
 

@@ -89,9 +89,9 @@ def main(
 
 if __name__ == '__main__':
     data = []
-    model = "opt_13b"####, "opt_66b", "opt_175b"  # 测试不同模型规模
+    model = "opt_66b"##, "opt_66b", "opt_175b"  
     model_type = ModelTypes.model_str_to_object(model)
-    print("Starting experiments...")  # 首个检查点#######################
+    print("Starting experiments...")  
     ngpu = 2
     print(f"Testing with {ngpu} GPUs...")
     print(f"Running Distserve ...")
@@ -102,6 +102,7 @@ if __name__ == '__main__':
         model_type=f'facebook/opt-{model.split("_")[1]}',
         is_dist_high=True,
         offload_type='cxl',
+        #offload_type='local',
         memory_threshold=1,
         gpu_memory_size=32 * 1024,
         #cxl_memory_size=0,
@@ -132,10 +133,10 @@ if __name__ == '__main__':
 
     # for model in models:
     #     model_type = ModelTypes.model_str_to_object(model)
-    #     print(f"\nTesting model: {model}")  # 模型循环检查点#####################
+    #     print(f"\nTesting model: {model}")  
         
     #     for ngpu in 2#[2, 4, 8, 16, 32]:
-    #         print(f"  Testing with {ngpu} GPUs...")  # GPU配置检查点#####################
+    #         print(f"  Testing with {ngpu} GPUs...")  
     #         # Distserve local
     #         print(f"    Running Distserve local...")#######################
             
@@ -143,7 +144,7 @@ if __name__ == '__main__':
             # result1 = main(
             #     num_node=1, 
             #     num_gpu_per_node=ngpu,
-            #     model_type=f'facebook/opt-{model.split("_")[1]}',  # 直接构造正确格式
+            #     model_type=f'facebook/opt-{model.split("_")[1]}',  
             #     is_dist_high=True,
             #     offload_type='local',
             #     memory_threshold=1,
@@ -174,7 +175,7 @@ if __name__ == '__main__':
         #     result2 = main(
         #         num_node=1, 
         #         num_gpu_per_node=ngpu,
-        #         model_type=f'facebook/opt-{model.split("_")[1]}',  # 直接构造正确格式
+        #         model_type=f'facebook/opt-{model.split("_")[1]}',  
         #         is_dist_high=True,
         #         offload_type='cxl',
         #         memory_threshold=1,
@@ -205,7 +206,7 @@ if __name__ == '__main__':
         #     result3 = main(
         #         num_node=1, 
         #         num_gpu_per_node=ngpu,
-        #         model_type=f'facebook/opt-{model.split("_")[1]}',  # 直接构造正确格式
+        #         model_type=f'facebook/opt-{model.split("_")[1]}',  
         #         is_dist_high=True,
         #         offload_type='local',
         #         memory_threshold=1,
@@ -231,7 +232,6 @@ if __name__ == '__main__':
         #         "max_gpu_usage": result3.get('max_gpu_usage', 0)   
         # })
 
-    # 保存结果
     df = pd.DataFrame(data)
     df.to_csv("parallel_bisect_results.csv", index=False)
 

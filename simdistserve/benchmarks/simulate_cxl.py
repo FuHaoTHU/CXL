@@ -21,7 +21,7 @@ from simdistserve.base.worker import WorkerConfig
 from simdistserve.base.workload import (
     get_gamma_interarrival,
     get_fixed_interarrival,
-    convert_absolutearrival_to_interarrival, convert_pd_pair_to_request, sample_requests
+    convert_absolutearrival_to_interarrival, convert_pd_pair_to_request, sample_requests, sample_requests_1
 )
 from simdistserve.clusters.disagg import DisaggCluster
 from simdistserve.clusters.vllm import VLLMCluster
@@ -122,7 +122,7 @@ def load_workload(workload, N, rate, cv, seed, process: Literal["fixed", "gamma"
         )
         dataset_file = dataset_root / f"{workload}.ds"
         check_dataset_existence(dataset_file)
-        requests = sample_requests(dataset_file, N)
+        requests = sample_requests_1(dataset_file, N)
 
         if process == 'fixed':
             delay = 1 / rate * 1000  # ms
@@ -160,12 +160,10 @@ def main(args, outputs = None):
     PP_decode = args.pp_decode
     num_gpus = TP_Prefill * PP_prefill + TP_Decode * PP_decode  #GPU number
     print(f"GPU configuration: {num_gpus} GPUs total")
-    # 在这里处理模型名称转换###########################
+    
     if args.model.startswith('opt_'):
-        # 如果是 opt_13b 格式，转换为 facebook/opt-13b 格式
         model_type = f'facebook/opt-{args.model.split("_")[1]}'
     else:
-        # 如果已经是 facebook/opt-13b 格式，直接使用
         model_type = args.model
         
     print(f"Model type: {model_type}")  # 添加调试输出
@@ -249,18 +247,17 @@ def main(args, outputs = None):
     print("Submitting requests...")
     put_requests_with_interarrivals(env, cluster.scheduler, arrival, requests)
     print("Running simulation...")
-    start_time = time.time()  # 添加开始时间记录
+    start_time = time.time()  
     print("Before simulation, checking state:")
     print(f"- Number of requests: {len(requests)}")
     print(f"- Worker count: {len(cluster.get_all_workers())}")
-    print(f"- Request arrival intervals: {arrival[:5]}...")  # 只打印前5个间隔
+    print(f"- Request arrival intervals: {arrival[:5]}...")  
     env.run()
     print("After simulation, checking state:")
     print(f"- Simulation time: {env.now}")
-    end_time = time.time()    # 添加结束时间记录
+    end_time = time.time()    
     print("Simulation completed, collecting stats...")
 
-        # 收集性能指标
     total_tokens = 0
     total_time = 0
     offload_amount = 0
@@ -270,10 +267,9 @@ def main(args, outputs = None):
 
     
     print("Collecting worker stats...")
-# 从所有worker收集统计信息
     for i, worker in enumerate(cluster.get_all_workers()):
         print(f"\nWorker {i} full stats dictionary:")
-        print(worker.stats)  # 打印整个 stats 字典
+        print(worker.stats)  
         try:
 
             total_tokens += worker.stats['total_tokens']
@@ -299,7 +295,7 @@ def main(args, outputs = None):
 
     
 
-    # 计算吞吐量和其他指标
+    
     stats = {
         'throughput': total_tokens / total_time if total_time > 0 else 0,  # tokens/s
         'num_gpus': num_gpus,

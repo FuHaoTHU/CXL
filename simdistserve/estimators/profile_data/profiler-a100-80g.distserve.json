@@ -56,6 +56,24 @@
     }
   },
   "facebook/opt-66b": {
+    "1": {
+       "decoding_large_small_bs_threshold": 95,
+       "prefill": [
+           87.71492783849612,
+           0.549,
+           0.000045
+       ],
+       "decoding_smallbs": [
+           91.33712362833464,
+           0.0011,
+           0.19
+       ],
+       "decoding_largebs": [
+           32.837652048550716,
+           0.00085,
+           0.58
+       ]
+    },
     "2": {
       "decoding_large_small_bs_threshold": 95,
       "prefill": [
