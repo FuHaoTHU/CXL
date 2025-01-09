@@ -89,7 +89,7 @@ def main(
 
 if __name__ == '__main__':
     data = []
-    model = "opt_66b"##, "opt_66b", "opt_175b"  
+    model = "opt_13b"##, "opt_66b", "opt_175b"  
     model_type = ModelTypes.model_str_to_object(model)
     print("Starting experiments...")  
     ngpu = 2

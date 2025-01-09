@@ -163,14 +163,23 @@ def sample_requests(dataset_path: PathLike, num_prompts: int) -> 'list[(int, int
         dataset = marshal.load(f)
     dataset = dataset['reqs']
     result = random.sample(dataset, num_prompts)
+    
     result = [(p, d) for (_, p, d) in result]
+
+    #### test random dataset #################
+    sum = 0
+    for i, (prefill_length, output_length) in enumerate(result):
+        sum += prefill_length + output_length
+        print(f"TEST RANDOM request {i}: ({prefill_length},{output_length})")
+    
+    print(f"TEST RANDOM: {sum}")
 
     # Generate requests
     requests = [
         Request(
             env=None,
             req_id=i,
-            prefill_length=prefill_length,
+            prefill_length=prefill_length, #max:+1925
             output_lens=output_length,
         )
         for i, (prefill_length, output_length) in enumerate(result)

@@ -3,6 +3,7 @@ Worker class for simulation. One worker class manages a TP group.
 """
 import random
 import warnings
+import simpy
 from collections import deque
 from typing import Optional, List, Iterable, TYPE_CHECKING, Union, TypedDict, Literal
 from uuid import UUID
@@ -61,6 +62,7 @@ class Worker:
         local_memory_size = 64 * 1024, ##64GB
     ):
         self.env = env
+        self.memory_event = simpy.Event(env)
         self.cluster = cluster  # Refer to the cluster of init.
         self.wid = wid
         self.pipe_rank = pipe_rank
@@ -102,6 +104,7 @@ class Worker:
 
         self.prefill_queue: 'deque[Request]' = deque()
         self.decode_queue: 'deque[Request]' = deque()
+        self.DECODE_REQS: 'list[Request]' = []
         self._prefill_ips: int = 0  # Elements in progress for prefill
         self._decode_ips: int = 0  # Elements in progress for decode
         self._wakeup_event = env.event()
@@ -113,7 +116,7 @@ class Worker:
         
         self.offload_type = offload_type
         self.memory_threshold = memory_threshold
-        self.load_memory_threshold = 0.8
+        self.load_memory_threshold = memory_threshold + 0.1
         self.cxl_load_time_per_mb = cxl_load_time_per_mb
         self.local_load_time_per_mb = local_load_time_per_mb
         self.max_tokens_limit = self.decode_max_tokens
@@ -124,6 +127,7 @@ class Worker:
         self.local_memory_used = 0
         self.TPOP = 0
         self.reset_stats()  
+        self.ramaining = len(self.decode_queue)
         pass
 
     def reset_stats(self):
@@ -169,16 +173,16 @@ class Worker:
         print(f"Worker {self.wid} starting...")
         while True:
             if not (self.prefill_queue or self.decode_queue):
-                print(f"Worker {self.wid} waiting for requests...")
+                print(f"Worker {self.wid} waiting for requests...AMOUNT")
                 yield self._wakeup_event
-
+            self.check_memory_pressure()
             if self.prefill_queue and not self.has_back_pressure:
-                print(f"Worker {self.wid} doing prefill...")
+                print(f"Worker {self.wid} doing prefill...AMOUNT")
                 yield from self.do_prefill()
             else:
-                print(f"Worker {self.wid} doing decode...")
+                print(f"Worker {self.wid} doing decode...AMOUNT")
                 yield from self.do_decode()
-
+            
             self._log_event("wait")
             pass
 
@@ -186,26 +190,23 @@ class Worker:
 
     def run_offload(self):
         while True:
-            #yield self._wakeup_event
-            if self.decode_queue and self.check_memory_pressure:
-                print(f"Worker {self.wid} doing offload")
+            yield self.memory_event
+            #while not self.check_memory_pressure():
+            #    yield self.env.timeout(0.1) 
+            if self.decode_queue and self.check_memory_pressure():
+                print(f"Worker {self.wid} doing offload AMOUNT")
                 yield from self.select_requests_to_offload()
-            else:
-                pass
-            pass
-        pass
+
 
     
     def run_load(self):
         while True:
-            #yield self._wakeup_event
-            if self.decode_queue and not self.check_memory_pressure:
-                print(f"Worker {self.wid} doing load")
+            yield self.memory_event
+            #while self.check_memory_pressure():
+            #    yield self.env.timeout(0.1)
+            if self.decode_queue and self.check_memory_pressure_load():
+                print(f"Worker {self.wid} doing load AMOUNT")
                 yield from self.select_requests_to_load()
-            else:
-                pass
-            pass
-        pass
 
     def add_ray_overhead(self, sum_of_tokens) -> int:
         base_overhead = 2
@@ -232,9 +233,21 @@ class Worker:
     def check_memory_pressure(self) -> bool:
         
         current_gpu_usage = self.gpu_memory_usage()
+        pressure = current_gpu_usage > self.memory_threshold
         print(f"Current GPU memory usage: {current_gpu_usage:.4f}")
-        return current_gpu_usage > self.memory_threshold
-
+        if pressure:
+            if not self.memory_event.triggered:
+                self.memory_event.succeed()
+                self.memory_event = simpy.Event(self.env)
+        return pressure
+    def check_memory_pressure_load(self) -> bool:
+        current_gpu_usage = self.gpu_memory_usage()
+        notpressure = current_gpu_usage < self.load_memory_threshold
+        if notpressure:
+            if not self.memory_event.triggered:
+                self.memory_event.succeed()
+                self.memory_event = simpy.Event(self.env)
+        return notpressure
     # def select_requests_to_offload(self):
     #     """选择需要卸载的请求"""
     #     if self.offload_type == 'cxl':
@@ -284,7 +297,7 @@ class Worker:
                 return []
                 
             sorted_requests = sorted(
-                [req for req in self.decode_queue if req.location == 'gpu'],
+                [req for req in self.decode_queue if req not in self.DECODE_REQS and req.location == 'gpu'],
                 key=lambda req: req._calculate_priority()
             )  
 
@@ -296,7 +309,9 @@ class Worker:
                         self.update_memory_usage(req, req.location, 'cxl')
                         self.stats['offload_amount'] += req.current_kvcache_size
                         self.stats['offload_count'] += 1
+                        print(f"OFFLOAD AMOUNT:{req.current_kvcache_size/self.gpu_memory_size}")
                         self.cxl_memory_used += req_size
+                        yield self.env.timeout(0)
                     else:
                         break  
                 else:
@@ -318,16 +333,16 @@ class Worker:
                         self.stats['offload_amount'] += req.current_kvcache_size
                         self.stats['offload_count'] += 1
                         self.local_memory_used += req_size
+                        yield self.env.timeout(0)
                     else:
                         break  
                 else:
                     break  
             self.stats['max_gpu_memory_usage'] = max(self.stats['max_gpu_memory_usage'], self.gpu_memory_usage())
 
-        yield self.env.timeout(0)
         return to_offload
 
-    def select_requests_to_load(self):
+    def select_requests_to_load(self): 
         
         if not self.offload_type: 
             return []
@@ -353,6 +368,7 @@ class Worker:
                 self.stats['total_delay'] += delay
                 self.stats['load_amount'] += req.current_kvcache_size
                 self.stats['load_count'] += 1
+                print(f"LOAD AMOUNT:{req.current_kvcache_size/self.gpu_memory_size}")
                 self.cxl_memory_used -= req.current_kvcache_size
                 #current_gpu_usage += req.current_kvcache_size/self.gpu_memory_size
                 yield self.env.timeout(delay)
@@ -416,11 +432,16 @@ class Worker:
 
     def check_cxl_memory_available(self, request_size: int) -> bool:
        
-        return (self.cxl_memory_used + request_size) <= self.cxl_memory_size
+        not_full = (self.cxl_memory_used + request_size) <= self.cxl_memory_size
+        if not not_full:
+            print(f"CXL MEMORY FULL!!!")
+        return not_full
 
     def check_local_memory_available(self, request_size: int) -> bool:
-      
-        return (self.local_memory_used + request_size) <= self.local_memory_size
+        not_full = (self.local_memory_used + request_size) <= self.local_memory_size
+        if not not_full:
+            print(f"LOCAL MEMORY FULL!!!")
+        return not_full
 
     def update_memory_usage(self, request, old_location: str, new_location: str):
 
@@ -475,9 +496,8 @@ class Worker:
 
         # Acceptable decode requests is capped by the remaining allowed tokens in this batch.
         # TODO: Hack: Must revert this to use the max token given
-        # watermark = 0.9
-        # decode_max_tokens = self.decode_max_tokens * watermark
-        decode_max_tokens = 65536
+        # decode_max_tokens = gpu_memory/kvcache_size_per_token - prefill_max_tokens
+        decode_max_tokens = 60523
         decode_reqs = []
     
         print(f"Starting _enter_decodes with queue length: {len(self.decode_queue)}")
@@ -496,6 +516,7 @@ class Worker:
                     decode_reqs.append(req)
                     to_remove.append(idx)
             self.decode_queue = deque([req for i, req in enumerate(queue_list) if i not in to_remove])
+            self.remaining = len(self.decode_queue)
         except Exception as e:
             print(f"Error in _enter_decodes: {e}")
             return []  
@@ -666,6 +687,7 @@ class Worker:
 
     def do_decode(self):
         
+        
         # 1.
         print(f"Worker {self.wid} starting decode process...")
         #self.stats['max_gpu_memory_usage'] = max(self.stats['max_gpu_memory_usage'], self.gpu_memory_usage())
@@ -685,13 +707,14 @@ class Worker:
 
         # 3. 
         
-        decode_reqs = self._enter_decodes(self.decode_max_tokens)
+        self.DECODE_REQS = self._enter_decodes(self.decode_max_tokens)
         #except Exception as e:
         #    print(f"Error in getting decode requests: {e}")
         #    decode_reqs = []  
         
 
-        batch_size = len(decode_reqs)
+        batch_size = len(self.DECODE_REQS)
+        print(f"DECODE AMOUNT: {batch_size},RAMAINING AMOUNT:{self.remaining}")
         self.stats['request_count'] += batch_size
         self.stats['avg_batch_size'] = (
             self.stats['total_tokens'] / self.stats['request_count'] 
@@ -705,10 +728,10 @@ class Worker:
             "do_decode", 
             num_tokens=batch_size, 
             decode_bs=batch_size,
-            decode_len_list=[x.current_context_len for x in decode_reqs],
+            decode_len_list=[x.current_context_len for x in self.DECODE_REQS],
         )
         
-        _token_generated_list = [x.current_context_len + 1 for x in decode_reqs]
+        _token_generated_list = [x.current_context_len + 1 for x in self.DECODE_REQS]
         print(f"Total tokens to generate: {sum(_token_generated_list)}")
         
         delay = get_decode_time(
@@ -732,17 +755,18 @@ class Worker:
            
     
         # 5.
-        num_tokens = sum(x.current_context_len for x in decode_reqs)
+        num_tokens = sum(x.current_context_len for x in self.DECODE_REQS)
         self.stats['total_tokens'] += num_tokens
         if self.is_first_in_pipeline:
             delay += self.add_ray_overhead(num_tokens)
         self.stats['total_delay'] += delay
+        print(f"DECODE TIME PROPORTION: {delay / self.stats['total_delay']:.2f}")
         print(f"Total delay for this cycle: {self.stats['total_delay']:.2f}s")
         self.TPOP = delay / num_tokens if num_tokens > 0 else 0
 
         # 6. 
         yield self.env.timeout(delay)
-        self._exit_decode(decode_reqs)
+        self._exit_decode(self.DECODE_REQS)
 
         return
 

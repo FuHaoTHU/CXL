@@ -47,7 +47,7 @@ class Request:
         req_id: int = None,               # 请求ID
         req_init_counter=-1,              # 初始计数器
         prefill_length: int = 512,        # 预填充长度
-        output_lens: int = 6400000,           # 输出长度################################设为非定值
+        output_lens: int = 640,           # 输出长度################################设为非定值
         schedule_wait: int = 0,            # 调度等待时间
         offload_type: str = None
     ):

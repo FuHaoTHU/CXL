@@ -1,2 +1,2 @@
 name,ngpu,duration,throughput,total_tokens,total_time,offload_amount,load_amount,max_gpu_usage
-Distservecxl_opt_66b,2,0.03046364802867174,0,0,0,0,0,0
+Distservecxl_opt_13b,2,3.3773053830955178,0,0,0,0,0,0

@@ -187,7 +187,7 @@ def run_cxl_exp(
 
 # def calculate_performance(self):
 
-# ä
+# ï¿½
 # 
 #     print(f"\nCalculating performance at simulation time: {self.env.now}")
 #     total_tokens = 0

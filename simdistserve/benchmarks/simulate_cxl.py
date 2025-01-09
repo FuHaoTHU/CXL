@@ -111,8 +111,9 @@ def check_dataset_existence(x):
 
 
 def load_workload(workload, N, rate, cv, seed, process: Literal["fixed", "gamma"]):
-    random.seed(seed)
-    np.random.seed(seed)
+    #random.seed(seed)
+    #np.random.seed(seed)
+
     if workload in ['sharegpt', 'longbench', 'humaneval']:
         dataset_root = os.environ.get('DATASET', '/workspace/CXL/Distserve/dataset')
         dataset_root = Path(dataset_root)
@@ -122,7 +123,7 @@ def load_workload(workload, N, rate, cv, seed, process: Literal["fixed", "gamma"
         )
         dataset_file = dataset_root / f"{workload}.ds"
         check_dataset_existence(dataset_file)
-        requests = sample_requests_1(dataset_file, N)
+        requests = sample_requests(dataset_file, N)
 
         if process == 'fixed':
             delay = 1 / rate * 1000  # ms
